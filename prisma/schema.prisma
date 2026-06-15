@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model File {
+  id            String   @id @default(cuid())
+  filename      String
+  originalName  String
+  mimeType      String
+  size          Int
+  expiresAt     DateTime
+  downloadCount Int      @default(0)
+  maxDownloads  Int?
+  shareCode     String?
+  oneTime       Boolean  @default(false)
+  password      String?
+  createdAt     DateTime @default(now())
+}
+
+model MyFile {
+  id           String   @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  note         String?
+  createdAt    DateTime @default(now())
+}
+
+model ShareCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model TeamMemo {
+  id        String   @id @default(cuid())
+  shareCode String   @unique
+  content   String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
+model AccessLog {
+  id        String   @id @default(cuid())
+  type      String
+  label     String
+  ip        String
+  createdAt DateTime @default(now())
+}
+
+model WebhookEndpoint {
+  id        String           @id @default(cuid())
+  slug      String           @unique
+  label     String           @default("")
+  createdAt DateTime         @default(now())
+  requests  WebhookRequest[]
+}
+
+model WebhookRequest {
+  id         String          @id @default(cuid())
+  endpointId String
+  endpoint   WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  method     String
+  headers    String
+  body       String
+  ip         String
+  createdAt  DateTime        @default(now())
+}
+
+model OnetimeMemo {
+  id        String   @id @default(cuid())
+  content   String
+  viewed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model CommandBookmark {
+  id        String   @id @default(cuid())
+  label     String
+  command   String
+  tags      String   @default("")
+  createdAt DateTime @default(now())
+}
+
+model Snippet {
+  id        String   @id @default(cuid())
+  title     String
+  language  String   @default("plaintext")
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model ShortUrl {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  target    String
+  createdAt DateTime @default(now())
+  hitCount  Int      @default(0)
+}
+
+model Paste {
+  id        String   @id @default(cuid())
+  title     String   @default("")
+  language  String   @default("plaintext")
+  content   String
+  password  String?
+  expiresAt DateTime?
+  viewCount Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model EnvStore {
+  id        String   @id @default(cuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TeamNotice {
+  id        String   @id @default(cuid())
+  shareCode String
+  content   String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model FilePassword {
+  fileId    String   @id
+  password  String
+}
+
+model TeamMessage {
+  id        String   @id @default(cuid())
+  author    String   @default("익명")
+  content   String
+  createdAt DateTime @default(now())
+}
