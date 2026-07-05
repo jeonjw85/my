@@ -14,7 +14,6 @@ const PUBLIC_NAV: NavItem[] = [
     { href: "/", label: "파일 공유" },
     { href: "/share", label: "팀 저장소" },
     { href: "/team", label: "팀 채널" },
-    { href: "/intragate", label: "내부망 접속" },
 ];
 
 const AUTH_NAV: NavItem[] = [{ href: "/my", label: "내 저장소" }];
