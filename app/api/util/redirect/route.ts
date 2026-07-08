@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { assertPublicHttpUrl, SsrfBlockedError } from "@/lib/ssrf";
 
 export async function GET(request: NextRequest) {
     const session = await getSession();
@@ -7,7 +8,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(request.url).searchParams.get("url");
-    if (!url || !url.startsWith("http"))
+    if (!url)
         return NextResponse.json(
             { error: "유효한 URL(http/https) 필요" },
             { status: 400 },
@@ -18,6 +19,9 @@ export async function GET(request: NextRequest) {
 
     for (let i = 0; i < 12; i++) {
         try {
+
+            await assertPublicHttpUrl(current);
+
             const res = await fetch(current, {
                 redirect: "manual",
                 signal: AbortSignal.timeout(6000),
@@ -40,7 +44,10 @@ export async function GET(request: NextRequest) {
             chain.push({
                 url: current,
                 status: 0,
-                statusText: (e as Error).message,
+                statusText:
+                    e instanceof SsrfBlockedError
+                        ? e.message
+                        : (e as Error).message,
             });
             break;
         }
