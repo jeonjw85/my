@@ -10,8 +10,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Vault",
-    description: "File vault",
+    title: "MY",
+    description: "MY 파일 공유 및 유틸리티",
 };
 
 export default function RootLayout({

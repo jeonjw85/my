@@ -91,7 +91,7 @@ export default function Home() {
     return (
         <main className="max-w-3xl mx-auto px-8 py-20 space-y-10">
             <div className="flex items-center">
-                <h1 className="text-3xl font-bold tracking-tight">vault</h1>
+                <h1 className="text-3xl font-bold tracking-tight">MY</h1>
             </div>
 
             <div
