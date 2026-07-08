@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { assertPublicHttpUrl, SsrfBlockedError } from "@/lib/ssrf";
+
+const MAX_REDIRECTS = 5;
 
 export async function POST(request: NextRequest) {
     const session = await auth();
@@ -21,33 +24,12 @@ export async function POST(request: NextRequest) {
     if (!url)
         return NextResponse.json({ error: "URL required" }, { status: 400 });
 
-    // Validate URL - only allow http/https
-    let parsedUrl: URL;
     try {
-        parsedUrl = new URL(url);
-    } catch {
-        return NextResponse.json(
-            { error: "유효하지 않은 URL" },
-            { status: 400 },
-        );
-    }
-    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        return NextResponse.json(
-            { error: "HTTP/HTTPS URL만 허용됩니다." },
-            { status: 400 },
-        );
-    }
-    // Block internal/private IP ranges
-    const hostname = parsedUrl.hostname;
-    if (
-        /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|localhost$|::1$)/i.test(
-            hostname,
-        )
-    ) {
-        return NextResponse.json(
-            { error: "내부 네트워크 주소는 허용되지 않습니다." },
-            { status: 403 },
-        );
+        await assertPublicHttpUrl(url);
+    } catch (e) {
+        if (e instanceof SsrfBlockedError)
+            return NextResponse.json({ error: e.message }, { status: 400 });
+        throw e;
     }
 
     const headers: Record<string, string> = {};
@@ -62,16 +44,42 @@ export async function POST(request: NextRequest) {
 
     const start = Date.now();
     try {
-        const res = await fetch(url, {
-            method: method || "GET",
-            headers,
-            body:
-                method !== "GET" && method !== "HEAD" && body
-                    ? body
-                    : undefined,
-            redirect: "follow",
-            signal: AbortSignal.timeout(15000),
-        });
+        let currentUrl = url;
+        let res: Response;
+
+        for (let i = 0; ; i++) {
+            res = await fetch(currentUrl, {
+                method: method || "GET",
+                headers,
+                body:
+                    method !== "GET" && method !== "HEAD" && body
+                        ? body
+                        : undefined,
+                redirect: "manual",
+                signal: AbortSignal.timeout(15000),
+            });
+
+            const isRedirect = res.status >= 300 && res.status < 400;
+            const location = res.headers.get("location");
+            if (!isRedirect || !location) break;
+            if (i >= MAX_REDIRECTS) {
+                return NextResponse.json(
+                    { error: "리다이렉트 횟수 초과" },
+                    { status: 400 },
+                );
+            }
+            currentUrl = new URL(location, currentUrl).href;
+            try {
+                await assertPublicHttpUrl(currentUrl);
+            } catch (e) {
+                if (e instanceof SsrfBlockedError)
+                    return NextResponse.json(
+                        { error: e.message },
+                        { status: 400 },
+                    );
+                throw e;
+            }
+        }
         const elapsed = Date.now() - start;
         const resHeaders: Record<string, string> = {};
         res.headers.forEach((v, k) => {

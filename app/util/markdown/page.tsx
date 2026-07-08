@@ -3,47 +3,45 @@
 import { useState } from "react";
 
 // Very basic markdown → HTML (no dependencies)
+function sanitizeUrl(url: string): string {
+    const trimmed = url.trim();
+    if (/^\s*(javascript|data|vbscript):/i.test(trimmed)) return "#";
+    return trimmed;
+}
+
 function parseMarkdown(md: string): string {
     return (
         md
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
-            // code block
             .replace(
                 /```([\s\S]*?)```/g,
                 (_, c) => `<pre class="md-pre"><code>${c}</code></pre>`,
             )
-            // inline code
             .replace(/`([^`]+)`/g, "<code>$1</code>")
-            // h1-h3
             .replace(/^### (.+)$/gm, "<h3>$1</h3>")
             .replace(/^## (.+)$/gm, "<h2>$1</h2>")
             .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-            // bold/italic
             .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
             .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
             .replace(/\*(.+?)\*/g, "<em>$1</em>")
-            // strikethrough
             .replace(/~~(.+?)~~/g, "<del>$1</del>")
-            // links
             .replace(
                 /\[([^\]]+)\]\(([^)]+)\)/g,
-                '<a href="$2" target="_blank" rel="noopener">$1</a>',
+                (_, text, href) =>
+                    `<a href="${sanitizeUrl(href)}" target="_blank" rel="noopener">${text}</a>`,
             )
-            // images
-            .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" />')
-            // horizontal rule
+            .replace(
+                /!\[([^\]]*)\]\(([^)]+)\)/g,
+                (_, alt, src) =>
+                    `<img alt="${alt}" src="${sanitizeUrl(src)}" />`,
+            )
             .replace(/^---$/gm, "<hr />")
-            // blockquote
             .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
-            // unordered list
             .replace(/^[-*] (.+)$/gm, "<li>$1</li>")
-            // ordered list
             .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
-            // paragraphs (double newline)
             .replace(/\n\n/g, "</p><p>")
-            // single newline → <br>
             .replace(/\n/g, "<br />")
     );
 }

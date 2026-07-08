@@ -6,5 +6,13 @@ const { auth } = NextAuth(authConfig);
 export const proxy = auth;
 
 export const config = {
-    matcher: ["/admin", "/admin/(.*)", "/my", "/my/(.*)"],
+    matcher: [
+        "/admin",
+        "/admin/(.*)",
+        "/my",
+        "/my/(.*)",
+        "/util",
+        "/util/(.*)",
+        "/api/util/(.*)",
+    ],
 };
