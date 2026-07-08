@@ -4,7 +4,6 @@ export async function GET(request: NextRequest) {
     const ipParam = request.nextUrl.searchParams.get("ip");
 
     if (ipParam) {
-        // Validate IP format
         const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
         const ipv6Pattern = /^[0-9a-fA-F:]+$/;
         if (!ipv4Pattern.test(ipParam) && !ipv6Pattern.test(ipParam)) {
@@ -18,7 +17,7 @@ export async function GET(request: NextRequest) {
             const res = await fetch(
                 `https://ipapi.co/${encodeURIComponent(ipParam)}/json/`,
                 {
-                    headers: { "User-Agent": "vault-app/1.0" },
+                    headers: { "User-Agent": "my-app/1.0" },
                     signal: AbortSignal.timeout(8000),
                 },
             );
@@ -37,7 +36,6 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    // Return client IP
     const forwarded = request.headers.get("x-forwarded-for");
     const realIp = request.headers.get("x-real-ip");
     const ip = forwarded?.split(",")[0].trim() ?? realIp ?? "알 수 없음";
@@ -47,14 +45,14 @@ export async function GET(request: NextRequest) {
             const res = await fetch(
                 `https://ipapi.co/${encodeURIComponent(ip)}/json/`,
                 {
-                    headers: { "User-Agent": "vault-app/1.0" },
+                    headers: { "User-Agent": "my-app/1.0" },
                     signal: AbortSignal.timeout(8000),
                 },
             );
             const data = await res.json();
             return NextResponse.json({ ...data, detectedIp: ip });
         } catch {
-            /* fall through */
+            // fall through
         }
     }
     return NextResponse.json({ detectedIp: ip, ip });

@@ -115,7 +115,7 @@ export default function Sidebar() {
                     href="/"
                     className="text-lg font-bold tracking-tight text-zinc-100 hover:text-white transition-colors"
                 >
-                    vault
+                    MY
                 </Link>
             </div>
 

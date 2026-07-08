@@ -93,7 +93,7 @@ function objToYaml(obj: unknown, indent = 0): string {
 export default function YamlPage() {
     const [mode, setMode] = useState<"y2j" | "j2y">("y2j");
     const [input, setInput] = useState(
-        `name: vault\nversion: 1.0\nfeatures:\n  - upload\n  - share\ndatabase:\n  type: sqlite\n  path: ./dev.db`,
+        `name: MY\nversion: 1.0\nfeatures:\n  - upload\n  - share\ndatabase:\n  type: sqlite\n  path: ./dev.db`,
     );
     const [error, setError] = useState("");
     const [copied, setCopied] = useState(false);
