@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MY
 
-## Getting Started
+파일공유, 팀 채널, 개발자 유틸리티를 넣은 Next.js 기반 내 서버
 
-First, run the development server:
+## 주요 기능
+
+- 파일 공유 — 링크/공유코드 기반 파일 업로드, 만료 시간, 1회 다운로드, 비밀번호 보호
+- 팀 저장소 / 팀 채널 — 공유코드로 접근하는 팀 메모·공지·실시간 메시지 보드
+- 내 저장소 (`/my`, 로그인 필요) — 개인 파일 보관함
+- 개발자 유틸리티 (`/util`, 로그인 필요)
+- 관리자 패널 (`/admin`, 로그인 필요) — 공유 코드, 파일, 접속 로그 관리
+
+## 기술 스택
+
+- [Next.js 16](https://nextjs.org) (App Router) + React 19 + TypeScript
+- [Prisma](https://www.prisma.io) + SQLite
+- [Auth.js (NextAuth v5)](https://authjs.dev) — Authentik OIDC 프로바이더
+- Tailwind CSS 4
+
+## 시작하기
+
+### 1. 환경변수 설정
+
+프로젝트 루트에 `.env.local` 파일을 만들고 아래 값을 채웁니다.
+
+| 변수                                              | 설명                                                   |
+| ------------------------------------------------- | ------------------------------------------------------ |
+| `DATABASE_URL`                                    | SQLite 파일 경로                                       |
+| `AUTH_SECRET`                                     | Auth.js 세션 암호화 키 (`npx auth secret`로 생성 가능) |
+| `AUTH_URL`                                        | 배포 도메인                                            |
+| `AUTH_TRUST_HOST`                                 | 리버스 프록시 뒤에서 실행 시 `true`                    |
+| `AUTHENTIK_CLIENT_ID` / `AUTHENTIK_CLIENT_SECRET` | Authentik OIDC 앱의 클라이언트 ID/Secret               |
+| `AUTHENTIK_ISSUER`                                | Authentik OIDC issuer URL                              |
+
+### 2. 설치 및 DB 마이그레이션
+
+```bash
+npm install
+npx prisma migrate deploy
+```
+
+### 3. 개발 서버 실행
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. 프로덕션 빌드
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start
+```
 
-## Learn More
+## Docker로 배포하기
 
-To learn more about Next.js, take a look at the following resources:
+`.env`/`.env.local`을 준비한 뒤 다음 명령으로 실행합니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+docker compose up -d --build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- 기본 포트는 3000이며 `APP_PORT` 환경변수로 변경가능
+- 컨테이너 시작 -> `docker-entrypoint.sh`가 `prisma migrate deploy`를 자동으로 실행
 
-## Deploy on Vercel
+## 프로젝트 구조
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/            라우트 (페이지 + API)
+  admin/        관리자 패널
+  api/          REST API Route
+  util/         Utility Page
+components/     공용 UI Component
+lib/            인증, DB, 로그, SSRF 방어 공용 로직
+prisma/         스키마 및 마이그레이션
+```
