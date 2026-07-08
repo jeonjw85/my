@@ -51,3 +51,8 @@ next-env.d.ts
 *.db-journal
 *.sqlite
 *.sqlite3
+
+# local archives/exports (should not be committed)
+*.zip
+*.tar
+*.tar.gz
