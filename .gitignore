@@ -56,3 +56,6 @@ next-env.d.ts
 *.zip
 *.tar
 *.tar.gz
+
+# agent local state
+.omo/
