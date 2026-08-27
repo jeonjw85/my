@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
@@ -14,13 +14,22 @@ export const metadata: Metadata = {
     description: "MY 파일 공유 및 유틸리티",
 };
 
+export const viewport: Viewport = {
+    colorScheme: "dark",
+    themeColor: "#09090b",
+};
+
 export default function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="ko" className={`${geistMono.variable} h-full`}>
+        <html
+            lang="ko"
+            className={`${geistMono.variable} dark h-full`}
+            style={{ colorScheme: "dark" }}
+        >
             <body className="min-h-full bg-zinc-950 text-zinc-100 font-mono">
                 <Providers>
                     <div className="flex min-h-screen">
