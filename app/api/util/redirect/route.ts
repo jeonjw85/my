@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
 
     for (let i = 0; i < 12; i++) {
         try {
-
             await assertPublicHttpUrl(current);
 
             const res = await fetch(current, {
