@@ -1,6 +1,6 @@
 # MY
 
-파일 공유, 팀 채널, 개발자 유틸을 넣은 Next.js 개인 서버.
+파일 공유, 팀 채널, 개발자 유틸을 넣은 Next.js 개인 서버
 
 ## 기능
 
@@ -19,7 +19,7 @@
 
 ## 로컬 실행
 
-`.env.local`에 아래 값을 넣는다.
+`.env.local`
 
 | 변수 | 설명 |
 | --- | --- |
@@ -53,7 +53,7 @@ npm run start
 docker compose up -d --build
 ```
 
-기본 포트 3000. `APP_PORT`로 변경 가능. 시작 시 `prisma migrate deploy` 자동 실행.
+기본 포트 3000. `APP_PORT`로 변경 가능. 시작 시 `prisma migrate deploy` 자동 실행
 
 ## 구조
 
