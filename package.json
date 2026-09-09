@@ -2,6 +2,7 @@
     "name": "my",
     "version": "0.1.0",
     "private": true,
+    "description": "파일/페이스트 공유, 팀 채널, 30여 종의 개발자 유틸리티를 제공하는 Next.js 기반 개인 서버",
     "scripts": {
         "dev": "next dev",
         "build": "next build",
