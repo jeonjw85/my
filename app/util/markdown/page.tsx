@@ -10,40 +10,37 @@ function sanitizeUrl(url: string): string {
 }
 
 function parseMarkdown(md: string): string {
-    return (
-        md
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(
-                /```([\s\S]*?)```/g,
-                (_, c) => `<pre class="md-pre"><code>${c}</code></pre>`,
-            )
-            .replace(/`([^`]+)`/g, "<code>$1</code>")
-            .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-            .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-            .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-            .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
-            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-            .replace(/\*(.+?)\*/g, "<em>$1</em>")
-            .replace(/~~(.+?)~~/g, "<del>$1</del>")
-            .replace(
-                /\[([^\]]+)\]\(([^)]+)\)/g,
-                (_, text, href) =>
-                    `<a href="${sanitizeUrl(href)}" target="_blank" rel="noopener">${text}</a>`,
-            )
-            .replace(
-                /!\[([^\]]*)\]\(([^)]+)\)/g,
-                (_, alt, src) =>
-                    `<img alt="${alt}" src="${sanitizeUrl(src)}" />`,
-            )
-            .replace(/^---$/gm, "<hr />")
-            .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
-            .replace(/^[-*] (.+)$/gm, "<li>$1</li>")
-            .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
-            .replace(/\n\n/g, "</p><p>")
-            .replace(/\n/g, "<br />")
-    );
+    return md
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(
+            /```([\s\S]*?)```/g,
+            (_, c) => `<pre class="md-pre"><code>${c}</code></pre>`,
+        )
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+        .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+        .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+        .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/~~(.+?)~~/g, "<del>$1</del>")
+        .replace(
+            /\[([^\]]+)\]\(([^)]+)\)/g,
+            (_, text, href) =>
+                `<a href="${sanitizeUrl(href)}" target="_blank" rel="noopener">${text}</a>`,
+        )
+        .replace(
+            /!\[([^\]]*)\]\(([^)]+)\)/g,
+            (_, alt, src) => `<img alt="${alt}" src="${sanitizeUrl(src)}" />`,
+        )
+        .replace(/^---$/gm, "<hr />")
+        .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
+        .replace(/^[-*] (.+)$/gm, "<li>$1</li>")
+        .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
+        .replace(/\n\n/g, "</p><p>")
+        .replace(/\n/g, "<br />");
 }
 
 export default function MarkdownPage() {
