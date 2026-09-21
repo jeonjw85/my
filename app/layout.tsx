@@ -32,9 +32,11 @@ export default function RootLayout({
         >
             <body className="min-h-full bg-zinc-950 text-zinc-100 font-mono">
                 <Providers>
-                    <div className="flex min-h-screen">
+                    <div className="flex min-h-dvh">
                         <Sidebar />
-                        <div className="flex-1 min-w-0 pl-52">{children}</div>
+                        <div className="flex-1 min-w-0 pt-14 md:pt-0 md:pl-52">
+                            {children}
+                        </div>
                     </div>
                 </Providers>
             </body>

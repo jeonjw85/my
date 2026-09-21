@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type NavItem = {
     href: string;
@@ -94,36 +94,58 @@ export default function Sidebar() {
     const { data: session } = useSession();
     const pathname = usePathname();
     const [utilOpen, setUtilOpen] = useState(pathname.startsWith("/util"));
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-    const isActive = (href: string) =>
-        href === "/" ? pathname === "/" : pathname.startsWith(href);
+    useEffect(() => {
+        setMenuOpen(false);
+    }, [pathname]);
+
+    const closeMenu = () => {
+        setMenuOpen(false);
+    };
+
+    useEffect(() => {
+        if (!menuOpen) return;
+        const onKey = (e: globalThis.KeyboardEvent) => {
+            if (e.key === "Escape") {
+                setMenuOpen(false);
+                menuButtonRef.current?.focus();
+            }
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [menuOpen]);
+
+    const isActive = (href: string) => pathname === href;
 
     const linkCls = (href: string) =>
-        `block px-3 py-1.5 rounded text-sm transition-colors truncate ${
+        `block px-3 py-1.5 rounded text-sm transition-colors truncate focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${
             isActive(href)
                 ? "bg-zinc-800 text-zinc-100"
                 : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900"
         }`;
 
-    return (
-        <aside className="fixed top-0 left-0 h-screen w-52 flex flex-col bg-zinc-950 border-r border-zinc-800 z-40 overflow-y-auto">
-            {/* Logo */}
-            <div className="px-4 py-5 border-b border-zinc-800 shrink-0">
+    const sidebarInner = (
+        <>
+            {/* Desktop logo */}
+            <div className="hidden md:block px-4 py-5 border-b border-zinc-800 shrink-0">
                 <Link
                     href="/"
-                    className="text-lg font-bold tracking-tight text-zinc-100 hover:text-white transition-colors"
+                    className="text-lg font-bold tracking-tight text-zinc-100 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 rounded"
                 >
                     MY
                 </Link>
             </div>
 
             <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-                {/* Public */}
                 {PUBLIC_NAV.map((item) => (
                     <Link
                         key={item.href}
                         href={item.href}
                         className={linkCls(item.href)}
+                        aria-current={isActive(item.href) ? "page" : undefined}
+                        onClick={closeMenu}
                     >
                         {item.label}
                     </Link>
@@ -137,16 +159,20 @@ export default function Sidebar() {
                                 key={item.href}
                                 href={item.href}
                                 className={linkCls(item.href)}
+                                aria-current={
+                                    isActive(item.href) ? "page" : undefined
+                                }
+                                onClick={closeMenu}
                             >
                                 {item.label}
                             </Link>
                         ))}
 
-                        {/* Util section */}
                         <div className="pt-3" />
                         <button
                             onClick={() => setUtilOpen((v) => !v)}
-                            className="w-full flex items-center justify-between px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors rounded"
+                            aria-expanded={utilOpen}
+                            className="w-full flex items-center justify-between px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
                         >
                             <span>유틸</span>
                             <span className="text-xs">
@@ -166,6 +192,12 @@ export default function Sidebar() {
                                                 key={item.href}
                                                 href={item.href}
                                                 className={linkCls(item.href)}
+                                                aria-current={
+                                                    isActive(item.href)
+                                                        ? "page"
+                                                        : undefined
+                                                }
+                                                onClick={closeMenu}
                                             >
                                                 {item.label}
                                             </Link>
@@ -175,7 +207,6 @@ export default function Sidebar() {
                             </div>
                         )}
 
-                        {/* Admin */}
                         <div className="pt-3" />
                         <p className="px-3 py-1 text-xs text-zinc-600 uppercase tracking-widest">
                             관리
@@ -185,6 +216,10 @@ export default function Sidebar() {
                                 key={item.href}
                                 href={item.href}
                                 className={linkCls(item.href)}
+                                aria-current={
+                                    isActive(item.href) ? "page" : undefined
+                                }
+                                onClick={closeMenu}
                             >
                                 {item.label}
                             </Link>
@@ -201,13 +236,61 @@ export default function Sidebar() {
                         </p>
                         <button
                             onClick={() => signOut()}
-                            className="w-full text-left px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 rounded transition-colors"
+                            className="w-full text-left px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
                         >
                             로그아웃
                         </button>
                     </div>
                 </div>
             )}
-        </aside>
+        </>
+    );
+
+    return (
+        <>
+            {/* Mobile top bar */}
+            <header className="fixed top-0 inset-x-0 h-14 z-50 bg-zinc-950 border-b border-zinc-800 flex items-center px-4 md:hidden">
+                <button
+                    ref={menuButtonRef}
+                    onClick={() => setMenuOpen((v) => !v)}
+                    aria-expanded={menuOpen}
+                    aria-controls="mobile-sidebar"
+                    className="p-2 -ml-2 text-zinc-400 hover:text-zinc-100 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 rounded"
+                >
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 20 20"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        aria-hidden="true"
+                    >
+                        <path d="M3 5h14M3 10h14M3 15h14" />
+                    </svg>
+                    <span className="sr-only">
+                        {menuOpen ? "메뉴 닫기" : "메뉴 열기"}
+                    </span>
+                </button>
+                <Link
+                    href="/"
+                    className="ml-3 text-lg font-bold tracking-tight text-zinc-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 rounded"
+                >
+                    MY
+                </Link>
+            </header>
+
+            {/* Sidebar */}
+            <aside
+                id="mobile-sidebar"
+                className={`fixed left-0 w-52 flex-col bg-zinc-950 border-r border-zinc-800 z-40 overflow-y-auto ${
+                    menuOpen
+                        ? "top-14 h-[calc(100dvh-3.5rem)] flex md:top-0 md:h-dvh"
+                        : "hidden md:top-0 md:h-dvh md:flex"
+                }`}
+            >
+                {sidebarInner}
+            </aside>
+        </>
     );
 }
