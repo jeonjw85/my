@@ -12,7 +12,7 @@ model File {
   filename      String
   originalName  String
   mimeType      String
-  size          Int
+  size          Float
   expiresAt     DateTime?
   downloadCount Int      @default(0)
   maxDownloads  Int?

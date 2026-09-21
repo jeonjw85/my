@@ -14,6 +14,11 @@ import {
     MAX_GENERAL_UPLOAD_SIZE,
     isGeneralUploadTooLarge,
 } from "@/lib/upload-policy";
+import {
+    CHUNK_SIZE,
+    uploadDirect,
+    uploadInChunks,
+} from "@/lib/upload-client";
 
 const EXPIRE_OPTIONS = [
     { value: "1h", label: "1시간" },
@@ -97,49 +102,43 @@ export default function Home() {
         [status, validateFile],
     );
 
-    const handleUpload = useCallback(() => {
+    const handleUpload = useCallback(async () => {
         if (status === "loading" || !file) return;
         if (!validateFile(file)) return;
         dispatchUploadState({ type: "start" });
         setError("");
         setResult(null);
 
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("expireIn", expireIn);
-        fd.append("oneTime", String(oneTime));
-        if (filePassword.trim()) fd.append("password", filePassword.trim());
+        const options = {
+            expireIn,
+            oneTime,
+            password: filePassword.trim() || undefined,
+        };
+        const callbacks = {
+            onProgress: (progress: {
+                lengthComputable: boolean;
+                loaded: number;
+                total: number;
+            }) => dispatchUploadState({ type: "progress", ...progress }),
+            onProcessing: () => dispatchUploadState({ type: "uploaded" }),
+        };
 
-        const xhr = new XMLHttpRequest();
-        xhr.upload.onprogress = (e) => {
-            dispatchUploadState({
-                type: "progress",
-                lengthComputable: e.lengthComputable,
-                loaded: e.loaded,
-                total: e.total,
-            });
-        };
-        xhr.upload.onload = () => dispatchUploadState({ type: "uploaded" });
-        xhr.onload = () => {
-            try {
-                const data = JSON.parse(xhr.responseText);
-                if (xhr.status >= 400)
-                    throw new Error(data.error ?? "Upload failed");
-                setResult(data);
-                setFile(null);
-            } catch (e) {
-                setError(e instanceof Error ? e.message : "Upload failed");
-            } finally {
-                dispatchUploadState({ type: "reset" });
-            }
-        };
-        xhr.onerror = () => {
-            setError("Network error");
+        try {
+            const data = isAdmin && file.size > CHUNK_SIZE
+                ? await uploadInChunks(file, options, callbacks)
+                : await uploadDirect(file, options, callbacks);
+            setResult(data);
+            setFile(null);
+        } catch (uploadError) {
+            setError(
+                uploadError instanceof Error
+                    ? uploadError.message
+                    : "업로드 요청에 실패했습니다.",
+            );
+        } finally {
             dispatchUploadState({ type: "reset" });
-        };
-        xhr.open("POST", "/api/upload");
-        xhr.send(fd);
-    }, [status, file, validateFile, expireIn, oneTime, filePassword]);
+        }
+    }, [status, file, validateFile, expireIn, oneTime, filePassword, isAdmin]);
 
     const shareUrl = result ? `${location.origin}/f/${result.id}` : "";
 

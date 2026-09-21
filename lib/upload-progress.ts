@@ -25,7 +25,7 @@ export function uploadStateReducer(
             return { phase: "uploading", percent: null };
         case "progress":
             if (
-                state.phase !== "uploading" ||
+                state.phase === "idle" ||
                 !action.lengthComputable ||
                 action.total <= 0
             ) {
