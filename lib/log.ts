@@ -12,5 +12,7 @@ export async function logAccess(
 
     await prisma.accessLog
         .create({ data: { type, label, ip } })
-        .catch(() => {});
+        .catch((error: unknown) => {
+            console.error("[access-log] write failed", { type, error });
+        });
 }
