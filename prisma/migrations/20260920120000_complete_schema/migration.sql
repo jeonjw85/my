@@ -1,0 +1,116 @@
+CREATE TABLE IF NOT EXISTS "ShareCode" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "code" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "TeamMemo" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "shareCode" TEXT NOT NULL,
+    "content" TEXT NOT NULL DEFAULT '',
+    "updatedAt" DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "AccessLog" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "type" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "ip" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "WebhookEndpoint" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "slug" TEXT NOT NULL,
+    "label" TEXT NOT NULL DEFAULT '',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "WebhookRequest" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "endpointId" TEXT NOT NULL,
+    "method" TEXT NOT NULL,
+    "headers" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "ip" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "WebhookRequest_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "WebhookEndpoint" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "OnetimeMemo" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "content" TEXT NOT NULL,
+    "viewed" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "CommandBookmark" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "label" TEXT NOT NULL,
+    "command" TEXT NOT NULL,
+    "tags" TEXT NOT NULL DEFAULT '',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "Snippet" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "language" TEXT NOT NULL DEFAULT 'plaintext',
+    "content" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "ShortUrl" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "slug" TEXT NOT NULL,
+    "target" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "hitCount" INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS "Paste" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL DEFAULT '',
+    "language" TEXT NOT NULL DEFAULT 'plaintext',
+    "content" TEXT NOT NULL,
+    "password" TEXT,
+    "expiresAt" DATETIME,
+    "viewCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "EnvStore" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "TeamNotice" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "shareCode" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "pinned" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "FilePassword" (
+    "fileId" TEXT NOT NULL PRIMARY KEY,
+    "password" TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "TeamMessage" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "author" TEXT NOT NULL DEFAULT '익명',
+    "content" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "ShareCode_code_key" ON "ShareCode"("code");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "TeamMemo_shareCode_key" ON "TeamMemo"("shareCode");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "WebhookEndpoint_slug_key" ON "WebhookEndpoint"("slug");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "ShortUrl_slug_key" ON "ShortUrl"("slug");
