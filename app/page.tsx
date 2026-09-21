@@ -1,14 +1,22 @@
 "use client";
 
-import { useState, useRef, DragEvent } from "react";
+import { useState, useCallback } from "react";
+import type { ChangeEvent, DragEvent } from "react";
 import { useSession } from "next-auth/react";
+
+import {
+    MAX_GENERAL_UPLOAD_SIZE,
+    isGeneralUploadTooLarge,
+} from "@/lib/upload-policy";
 
 const EXPIRE_OPTIONS = [
     { value: "1h", label: "1시간" },
     { value: "6h", label: "6시간" },
     { value: "24h", label: "24시간" },
     { value: "7d", label: "7일" },
-];
+] as const;
+
+const GENERAL_UPLOAD_SIZE_ERROR = `파일 크기는 ${MAX_GENERAL_UPLOAD_SIZE / 1024 / 1024}MB를 초과할 수 없습니다.`;
 
 function formatBytes(bytes: number) {
     if (bytes < 1024) return `${bytes} B`;
@@ -17,7 +25,8 @@ function formatBytes(bytes: number) {
 }
 
 export default function Home() {
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
+    const isAdmin = status === "authenticated" && Boolean(session?.user);
     const [dragging, setDragging] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [expireIn, setExpireIn] = useState("24h");
@@ -30,22 +39,50 @@ export default function Home() {
     } | null>(null);
     const [error, setError] = useState("");
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setDragging(false);
-        const dropped = e.dataTransfer.files[0];
-        if (!dropped) return;
-        if (dropped.size > 500 * 1024 * 1024) {
-            setError("파일 크기는 500MB를 종과할 수 없습니다.");
-            return;
+    const validateFile = useCallback((f: File) => {
+        if (isGeneralUploadTooLarge(f.size, isAdmin)) {
+            setError(GENERAL_UPLOAD_SIZE_ERROR);
+            return false;
         }
-        setFile(dropped);
-    };
+        setError("");
+        return true;
+    }, [isAdmin]);
 
-    const handleUpload = () => {
-        if (!file) return;
+    const handleDrop = useCallback(
+        (e: DragEvent<HTMLLabelElement>) => {
+            e.preventDefault();
+            setDragging(false);
+            if (status === "loading") return;
+            const dropped = e.dataTransfer.files[0];
+            if (!dropped) return;
+            if (validateFile(dropped)) {
+                setFile(dropped);
+            }
+        },
+        [status, validateFile],
+    );
+
+    const handleFileChange = useCallback(
+        (e: ChangeEvent<HTMLInputElement>) => {
+            if (status === "loading") {
+                e.target.value = "";
+                return;
+            }
+            const f = e.target.files?.[0];
+            if (!f) return;
+            if (validateFile(f)) {
+                setFile(f);
+            } else {
+                e.target.value = "";
+            }
+        },
+        [status, validateFile],
+    );
+
+    const handleUpload = useCallback(() => {
+        if (status === "loading" || !file) return;
+        if (!validateFile(file)) return;
         setUploading(true);
         setUploadProgress(0);
         setError("");
@@ -84,132 +121,164 @@ export default function Home() {
         };
         xhr.open("POST", "/api/upload");
         xhr.send(fd);
-    };
+    }, [status, file, validateFile, expireIn, oneTime, filePassword]);
 
     const shareUrl = result ? `${location.origin}/f/${result.id}` : "";
 
     return (
-        <main className="max-w-3xl mx-auto px-8 py-20 space-y-10">
-            <div className="flex items-center">
-                <h1 className="text-3xl font-bold tracking-tight">MY</h1>
+        <main className="max-w-3xl mx-auto px-4 sm:px-8 py-10 sm:py-16 space-y-6 sm:space-y-8">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+                    파일 공유
+                </h1>
+                <p className="mt-1 text-sm text-zinc-400">
+                    파일을 업로드하고 공유 링크를 생성합니다
+                </p>
             </div>
 
-            <div
-                className={`border border-dashed rounded p-20 text-center cursor-pointer transition-colors ${
-                    dragging
-                        ? "border-zinc-400 bg-zinc-900"
-                        : "border-zinc-700 hover:border-zinc-500"
-                }`}
+            {/* Upload surface */}
+            <label
                 onDragOver={(e) => {
                     e.preventDefault();
+                    if (status === "loading") return;
                     setDragging(true);
                 }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={handleDrop}
-                onClick={() => inputRef.current?.click()}
+                className={`block border border-dashed rounded cursor-pointer transition-colors focus-within:ring-1 focus-within:ring-zinc-500 ${
+                    dragging
+                        ? "border-zinc-400 bg-zinc-900"
+                        : "border-zinc-700 hover:border-zinc-500"
+                }`}
             >
                 <input
-                    ref={inputRef}
                     type="file"
-                    className="hidden"
-                    onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        if (f.size > 500 * 1024 * 1024) {
-                            setError("파일 크기는 500MB를 초과할 수 없습니다.");
-                            e.target.value = "";
-                            return;
-                        }
-                        setFile(f);
-                    }}
+                    className="sr-only"
+                    onChange={handleFileChange}
+                    disabled={status === "loading"}
                 />
-                {file ? (
-                    <div className="space-y-2">
-                        <p className="text-zinc-200 text-base truncate">
-                            {file.name}
+                <div className="px-6 py-10 sm:px-10 sm:py-14 text-center">
+                    {file ? (
+                        <div className="space-y-1">
+                            <p className="text-zinc-200 text-base truncate max-w-full">
+                                {file.name}
+                            </p>
+                            <p className="text-zinc-500 text-sm">
+                                {formatBytes(file.size)}
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="text-zinc-400 text-base">
+                            파일을 드래그하거나 클릭하여 선택
                         </p>
-                        <p className="text-zinc-500 text-sm">
-                            {formatBytes(file.size)}
-                        </p>
-                    </div>
-                ) : (
-                    <p className="text-zinc-500 text-base">파일 업로드</p>
-                )}
-            </div>
+                    )}
+                </div>
+            </label>
 
-            <div className="flex gap-4 flex-wrap">
-                {EXPIRE_OPTIONS.map((opt) => (
-                    <button
-                        key={opt.value}
-                        onClick={() => setExpireIn(opt.value)}
-                        className={`px-5 py-2 text-base rounded border transition-colors ${
-                            expireIn === opt.value
-                                ? "border-zinc-300 text-zinc-100"
-                                : "border-zinc-700 text-zinc-500 hover:border-zinc-500"
-                        }`}
-                    >
-                        {opt.label}
-                    </button>
-                ))}
-            </div>
+            {/* Expiration controls */}
+            <fieldset>
+                <legend className="text-sm text-zinc-400 mb-2">
+                    만료 시간
+                </legend>
+                <div className="flex gap-3 flex-wrap">
+                    {EXPIRE_OPTIONS.map((opt) => (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setExpireIn(opt.value)}
+                            aria-pressed={expireIn === opt.value}
+                            className={`px-3 py-1.5 text-sm rounded border transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${
+                                expireIn === opt.value
+                                    ? "border-zinc-500 text-zinc-100"
+                                    : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                            }`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+            </fieldset>
 
-            <label className="flex items-center gap-3 text-lg text-zinc-400 cursor-pointer select-none">
+            <label className="flex items-center gap-3 text-base text-zinc-400 cursor-pointer select-none">
                 <input
                     type="checkbox"
                     checked={oneTime}
                     onChange={(e) => setOneTime(e.target.checked)}
-                    className="accent-zinc-400"
+                    className="accent-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
                 />
                 1회 다운로드 후 삭제
             </label>
 
-            <div className="space-y-2">
-                <label className="text-sm text-zinc-500">비밀번호 (선택)</label>
+            <div className="space-y-1.5">
+                <label
+                    htmlFor="file-password"
+                    className="text-sm text-zinc-400"
+                >
+                    비밀번호 (선택)
+                </label>
                 <input
+                    id="file-password"
                     type="password"
                     placeholder="설정 시 다운로드 전 비밀번호 입력 필요"
                     value={filePassword}
                     onChange={(e) => setFilePassword(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-4 py-3 text-base focus:outline-none focus:border-zinc-500"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-base placeholder:text-zinc-400 focus:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 focus:border-zinc-500 transition-colors"
                 />
             </div>
 
             <button
+                type="button"
                 onClick={handleUpload}
-                disabled={!file || uploading}
-                className="w-full py-4 text-lg rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                disabled={!file || uploading || status === "loading"}
+                className="w-full py-3 text-base rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
             >
-                {uploading ? `업로드 중... ${uploadProgress ?? 0}%` : "업로드"}
+                {uploading
+                    ? `업로드 중... ${uploadProgress ?? 0}%`
+                    : "업로드"}
             </button>
 
             {uploading && uploadProgress !== null && (
-                <div className="w-full bg-zinc-800 rounded-full h-1.5">
-                    <div
-                        className="bg-zinc-300 h-1.5 rounded-full transition-all duration-300"
-                        style={{ width: `${uploadProgress}%` }}
-                    />
-                </div>
+                <progress
+                    role="progressbar"
+                    aria-valuenow={uploadProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="업로드 진행률"
+                    value={uploadProgress}
+                    max={100}
+                    className="w-full h-1.5 [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:bg-zinc-300 [&::-webkit-progress-value]:rounded-full [&::-moz-progress-bar]:bg-zinc-300 [&::-moz-progress-bar]:rounded-full"
+                />
             )}
 
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+            {error && (
+                <p role="alert" className="text-red-400 text-sm">
+                    {error}
+                </p>
+            )}
 
             {result && (
-                <div className="border border-zinc-700 rounded p-5 space-y-4">
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="border border-zinc-700 rounded p-4 sm:p-5 space-y-3"
+                >
                     <p className="text-sm text-zinc-500">
                         만료:{" "}
                         {new Date(result.expiresAt).toLocaleString("ko-KR")}
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <input
                             readOnly
                             value={shareUrl}
-                            className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-300 truncate"
+                            aria-label="공유 링크"
+                            className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-300 truncate"
                         />
                         <button
+                            type="button"
                             onClick={() =>
                                 navigator.clipboard.writeText(shareUrl)
                             }
-                            className="px-4 py-2 text-sm rounded bg-zinc-700 hover:bg-zinc-600 transition-colors shrink-0"
+                            className="px-4 py-2 text-sm rounded bg-zinc-700 hover:bg-zinc-600 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
                         >
                             복사
                         </button>
