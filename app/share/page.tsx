@@ -264,7 +264,7 @@ export default function SharePage() {
                 <button
                     onClick={handleLookup}
                     disabled={!codeInput.trim() || loading}
-                    className="px-6 py-4 text-lg rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 transition-colors"
+                    className="rounded-md bg-zinc-100 px-6 py-4 text-lg font-semibold text-zinc-950 shadow-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                 >
                     조회
                 </button>
@@ -402,7 +402,7 @@ export default function SharePage() {
                             !!overwriteTarget ||
                             status === "loading"
                         }
-                        className="w-full py-4 text-lg rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="w-full rounded-md bg-zinc-100 py-4 text-lg font-semibold text-zinc-950 shadow-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                     >
                         {uploading
                             ? `업로드 중... ${uploadProgress ?? 0}%`
@@ -476,7 +476,7 @@ export default function SharePage() {
                             </label>
                             <button
                                 onClick={postNotice}
-                                className="px-4 py-2 text-sm rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
+                                className="rounded-md bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-950 shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                             >
                                 등록
                             </button>

@@ -12,8 +12,6 @@ type NavItem = {
 
 const PUBLIC_NAV: NavItem[] = [
     { href: "/", label: "파일 공유" },
-    { href: "/share", label: "팀 저장소" },
-    { href: "/team", label: "팀 채널" },
 ];
 
 const AUTH_NAV: NavItem[] = [{ href: "/my", label: "내 저장소" }];
@@ -195,9 +193,8 @@ export default function Sidebar() {
                 )}
             </nav>
 
-            {/* Bottom: login/out */}
-            <div className="px-2 py-3 border-t border-zinc-800 shrink-0">
-                {session ? (
+            {session && (
+                <div className="px-2 py-3 border-t border-zinc-800 shrink-0">
                     <div className="space-y-1">
                         <p className="px-3 text-xs text-zinc-600 truncate">
                             {session.user?.email}
@@ -209,15 +206,8 @@ export default function Sidebar() {
                             로그아웃
                         </button>
                     </div>
-                ) : (
-                    <Link
-                        href="/admin"
-                        className="block px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 rounded transition-colors"
-                    >
-                        로그인
-                    </Link>
-                )}
-            </div>
+                </div>
+            )}
         </aside>
     );
 }
