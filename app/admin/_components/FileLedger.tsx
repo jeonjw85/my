@@ -94,6 +94,16 @@ function FileRow({ file, mutationPending, extending, deleting, onExtend, onDelet
                             {extending ? "연장 중..." : "+7일 연장"}
                         </button>
                     )}
+                    <a
+                        href={`/f/${file.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`/f/${file.id}`}
+                        aria-label={`${file.originalName} 공유 URL 열기`}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-sm border border-zinc-700 px-3 py-3 text-sm text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 lg:py-1.5"
+                    >
+                        URL
+                    </a>
                     {!expired && (
                         <a
                             href={`/api/files/${file.id}`}
