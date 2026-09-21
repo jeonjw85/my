@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { unlink } from "fs/promises";
+import { isPreviewableMime } from "@/lib/file-preview";
+import { parseByteRange } from "@/lib/http-range";
+import { stat, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { createReadStream } from "fs";
@@ -30,6 +32,11 @@ export async function GET(
             { error: "Download limit reached" },
             { status: 410 },
         );
+    }
+    const isPreview = request.nextUrl.searchParams.get("preview") === "1" &&
+        isPreviewableMime(file.mimeType);
+    if (isPreview && file.maxDownloads !== null) {
+        return NextResponse.json({ error: "Preview unavailable" }, { status: 403 });
     }
 
     // Password check
@@ -62,21 +69,67 @@ export async function GET(
         );
     }
 
-    await prisma.file.update({
-        where: { id },
-        data: { downloadCount: { increment: 1 } },
-    });
+    const size = (await stat(filePath)).size;
+    const requestedRange = file.maxDownloads === null
+        ? request.headers.get("range")
+        : null;
+    const rangeHeader = requestedRange?.includes(",") ? null : requestedRange;
+    let range = null;
+    if (rangeHeader) {
+        try {
+            range = parseByteRange(rangeHeader, size);
+        } catch (error) {
+            if (!(error instanceof RangeError)) throw error;
+            return new Response(null, {
+                status: 416,
+                headers: {
+                    "Accept-Ranges": "bytes",
+                    "Content-Range": `bytes */${size}`,
+                },
+            });
+        }
+    }
 
-    await logAccess("dl_public", file.originalName, request);
+    const shouldRecordDownload = !isPreview && (range === null || range.start === 0);
+    if (shouldRecordDownload) {
+        if (file.maxDownloads === null) {
+            await prisma.file.update({
+                where: { id },
+                data: { downloadCount: { increment: 1 } },
+            });
+        } else {
+            const claimed = await prisma.file.updateMany({
+                where: {
+                    id,
+                    downloadCount: { lt: file.maxDownloads },
+                },
+                data: { downloadCount: { increment: 1 } },
+            });
+            if (claimed.count === 0) {
+                return NextResponse.json(
+                    { error: "Download limit reached" },
+                    { status: 410 },
+                );
+            }
+        }
+        await logAccess("dl_public", file.originalName, request);
+    }
 
-    const stream = createReadStream(filePath);
+    const stream = createReadStream(filePath, range ?? undefined);
     const webStream = Readable.toWeb(stream) as ReadableStream;
+    const contentLength = range ? range.end - range.start + 1 : size;
+    const disposition = isPreview ? "inline" : "attachment";
 
     return new NextResponse(webStream, {
+        status: range ? 206 : 200,
         headers: {
+            ...(file.maxDownloads === null ? { "Accept-Ranges": "bytes" } : {}),
             "Content-Type": file.mimeType,
-            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
-            "Content-Length": file.size.toString(),
+            "Content-Disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+            "Content-Length": contentLength.toString(),
+            ...(range
+                ? { "Content-Range": `bytes ${range.start}-${range.end}/${size}` }
+                : {}),
         },
     });
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { expirationLabel } from "@/lib/file-expiration";
+import { isPreviewableMime } from "@/lib/file-preview";
 
 type FileInfo = {
     id: string;
@@ -137,6 +138,8 @@ export default function FilePageClient() {
 
     const downloadUrl = `/api/files/${file.id}${pw ? `?pw=${encodeURIComponent(pw)}` : ""}`;
     const previewUrl = downloadUrl + (pw ? "&" : "?") + "preview=1";
+    const canPreview = file.maxDownloads === null &&
+        isPreviewableMime(file.mimeType);
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
     const qrUrl = shareUrl
         ? `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(shareUrl)}&size=160x160&color=d4d4d8&bgcolor=09090b&format=svg`
@@ -190,33 +193,42 @@ export default function FilePageClient() {
             </div>
 
             {/* Preview */}
-            {isImage(file.mimeType) && (
+            {file.maxDownloads !== null &&
+                (isImage(file.mimeType) ||
+                    isVideo(file.mimeType) ||
+                    isAudio(file.mimeType) ||
+                    isPdf(file.mimeType)) && (
+                    <p className="text-sm text-zinc-500">
+                        1회 다운로드 파일은 미리보기를 지원하지 않습니다.
+                    </p>
+                )}
+            {canPreview && isImage(file.mimeType) && (
                 <div className="rounded border border-zinc-800 overflow-hidden bg-zinc-900 flex items-center justify-center p-4">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                        src={downloadUrl}
+                        src={previewUrl}
                         alt={file.originalName}
                         className="max-w-full max-h-[60vh] object-contain rounded"
                     />
                 </div>
             )}
-            {isVideo(file.mimeType) && (
+            {canPreview && isVideo(file.mimeType) && (
                 <video
-                    src={downloadUrl}
+                    src={previewUrl}
                     controls
                     className="w-full rounded border border-zinc-800 max-h-[60vh]"
                 />
             )}
-            {isAudio(file.mimeType) && (
-                <audio src={downloadUrl} controls className="w-full" />
+            {canPreview && isAudio(file.mimeType) && (
+                <audio src={previewUrl} controls className="w-full" />
             )}
-            {isPdf(file.mimeType) && (
+            {canPreview && isPdf(file.mimeType) && (
                 <div
                     className="rounded border border-zinc-800 overflow-hidden"
                     style={{ height: "70vh" }}
                 >
                     <iframe
-                        src={downloadUrl}
+                        src={previewUrl}
                         className="w-full h-full"
                         title={file.originalName}
                     />
