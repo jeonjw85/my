@@ -2,6 +2,14 @@
 
 import { useState, useRef, DragEvent, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+
+import {
+    MAX_GENERAL_UPLOAD_SIZE,
+    isGeneralUploadTooLarge,
+} from "@/lib/upload-policy";
+
+const GENERAL_UPLOAD_SIZE_ERROR = `파일 크기는 ${MAX_GENERAL_UPLOAD_SIZE / 1024 / 1024}MB를 초과할 수 없습니다.`;
 
 type Notice = {
     id: string;
@@ -31,6 +39,8 @@ function formatDate(iso: string) {
 }
 
 export default function SharePage() {
+    const { data: session, status } = useSession();
+    const isAdmin = status === "authenticated" && Boolean(session?.user);
     const [codeInput, setCodeInput] = useState("");
     const [activeCode, setActiveCode] = useState("");
     const [files, setFiles] = useState<ShareFile[]>([]);
@@ -56,6 +66,18 @@ export default function SharePage() {
     const [notices, setNotices] = useState<Notice[]>([]);
     const [newNotice, setNewNotice] = useState("");
     const [noticePinned, setNoticePinned] = useState(false);
+
+    const validateFile = useCallback(
+        (candidate: File) => {
+            if (isGeneralUploadTooLarge(candidate.size, isAdmin)) {
+                setUploadError(GENERAL_UPLOAD_SIZE_ERROR);
+                return false;
+            }
+            setUploadError("");
+            return true;
+        },
+        [isAdmin],
+    );
 
     const fetchFiles = useCallback(async (code: string) => {
         setLoading(true);
@@ -150,17 +172,19 @@ export default function SharePage() {
     const handleDrop = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         setDragging(false);
+        if (status === "loading") return;
         const dropped = e.dataTransfer.files[0];
         if (!dropped) return;
-        if (dropped.size > 500 * 1024 * 1024) {
-            setUploadError("파일 크기는 500MB를 초과할 수 없습니다.");
-            return;
-        }
+        if (!validateFile(dropped)) return;
         setFile(dropped);
     };
 
     const doUpload = (overwriteId?: string) => {
-        if (!file || !activeCode) return;
+        if (status === "loading" || !file || !activeCode) return;
+        if (!validateFile(file)) {
+            setOverwriteTarget(null);
+            return;
+        }
         setUploading(true);
         setUploadProgress(0);
         setUploadError("");
@@ -204,7 +228,8 @@ export default function SharePage() {
     };
 
     const handleUpload = () => {
-        if (!file || !activeCode) return;
+        if (status === "loading" || !file || !activeCode) return;
+        if (!validateFile(file)) return;
         const dup = files.find((f) => f.originalName === file.name);
         if (dup) {
             setOverwriteTarget(dup);
@@ -293,23 +318,28 @@ export default function SharePage() {
                         }`}
                         onDragOver={(e) => {
                             e.preventDefault();
+                            if (status === "loading") return;
                             setDragging(true);
                         }}
                         onDragLeave={() => setDragging(false)}
                         onDrop={handleDrop}
-                        onClick={() => inputRef.current?.click()}
+                        onClick={() => {
+                            if (status !== "loading") inputRef.current?.click();
+                        }}
                     >
                         <input
                             ref={inputRef}
                             type="file"
                             className="hidden"
+                            disabled={status === "loading"}
                             onChange={(e) => {
+                                if (status === "loading") {
+                                    e.target.value = "";
+                                    return;
+                                }
                                 const f = e.target.files?.[0];
                                 if (!f) return;
-                                if (f.size > 500 * 1024 * 1024) {
-                                    setUploadError(
-                                        "파일 크기는 500MB를 종과할 수 없습니다.",
-                                    );
+                                if (!validateFile(f)) {
                                     e.target.value = "";
                                     return;
                                 }
@@ -344,6 +374,7 @@ export default function SharePage() {
                             <div className="flex gap-2 shrink-0">
                                 <button
                                     onClick={() => doUpload(overwriteTarget.id)}
+                                    disabled={status === "loading"}
                                     className="px-3 py-1.5 text-sm rounded bg-yellow-700 hover:bg-yellow-600 text-white transition-colors"
                                 >
                                     덮어쓰기
@@ -365,7 +396,12 @@ export default function SharePage() {
 
                     <button
                         onClick={handleUpload}
-                        disabled={!file || uploading || !!overwriteTarget}
+                        disabled={
+                            !file ||
+                            uploading ||
+                            !!overwriteTarget ||
+                            status === "loading"
+                        }
                         className="w-full py-4 text-lg rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                         {uploading
