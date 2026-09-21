@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { MAX_GENERAL_UPLOAD_SIZE } from "@/lib/upload-policy";
+import { resolveUploadExpiration } from "@/lib/upload-expiration-policy";
 import {
     commitStagedUpload,
     InvalidMultipartUploadError,
@@ -17,13 +18,6 @@ import path from "path";
 import { logAccess } from "@/lib/log";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-
-const EXPIRE_MAP: Record<string, number> = {
-    "1h": 1,
-    "6h": 6,
-    "24h": 24,
-    "7d": 168,
-};
 
 export async function POST(request: NextRequest) {
     const session = await getSession();
@@ -57,8 +51,15 @@ export async function POST(request: NextRequest) {
     const expireIn = upload.fields.get("expireIn") ?? "24h";
     const oneTime = upload.fields.get("oneTime") === "true";
     const rawPassword = upload.fields.get("password") ?? null;
-    const hours = EXPIRE_MAP[expireIn] ?? 24;
-    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const expiration = resolveUploadExpiration(
+        expireIn,
+        session?.role === "admin",
+    );
+    if (!expiration.allowed) {
+        await removeStagedUpload(upload);
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const { expiresAt } = expiration;
 
     let hashedPw: string | null = null;
     try {

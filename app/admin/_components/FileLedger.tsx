@@ -1,4 +1,5 @@
-export type AdminFile = { readonly id: string; readonly originalName: string; readonly mimeType: string; readonly size: number; readonly expiresAt: string; readonly downloadCount: number; readonly maxDownloads: number | null; readonly shareCode: string | null; readonly oneTime: boolean; readonly createdAt: string };
+import type { AdminFile } from "@/lib/admin-files";
+import { expirationLabel, isExpired } from "@/lib/file-expiration";
 
 const FILE_FILTERS = ["all", "public", "shared"] as const;
 
@@ -28,10 +29,6 @@ function formatBytes(bytes: number) {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function isExpired(expiresAt: string) {
-    return new Date() > new Date(expiresAt);
 }
 
 function groupFiles(files: readonly AdminFile[]) {
@@ -79,20 +76,24 @@ function FileRow({ file, mutationPending, extending, deleting, onExtend, onDelet
                 <span className="whitespace-nowrap text-sm text-zinc-500">
                     {expired
                         ? "만료"
-                        : new Date(file.expiresAt).toLocaleDateString("ko-KR")}
+                        : expirationLabel(file.expiresAt, (expiresAt) =>
+                              new Date(expiresAt).toLocaleDateString("ko-KR"),
+                          )}
                 </span>
             </td>
             <td className="block w-full px-3 py-2 sm:px-3 sm:py-3 lg:table-cell lg:w-72">
                 <span className="text-sm text-zinc-400 lg:hidden">작업</span>
                 <span className="mt-2 flex w-full flex-wrap gap-2 lg:mt-0 lg:justify-end">
-                    <button
-                        type="button"
-                        onClick={() => onExtend(file.id)}
-                        disabled={mutationPending}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-sm border border-zinc-700 px-3 py-3 text-sm text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 lg:py-1.5"
-                    >
-                        {extending ? "연장 중..." : "+7일 연장"}
-                    </button>
+                    {file.expiresAt !== null && (
+                        <button
+                            type="button"
+                            onClick={() => onExtend(file.id)}
+                            disabled={mutationPending}
+                            className="inline-flex items-center justify-center whitespace-nowrap rounded-sm border border-zinc-700 px-3 py-3 text-sm text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 lg:py-1.5"
+                        >
+                            {extending ? "연장 중..." : "+7일 연장"}
+                        </button>
+                    )}
                     {!expired && (
                         <a
                             href={`/api/files/${file.id}`}

@@ -13,7 +13,7 @@ model File {
   originalName  String
   mimeType      String
   size          Int
-  expiresAt     DateTime
+  expiresAt     DateTime?
   downloadCount Int      @default(0)
   maxDownloads  Int?
   shareCode     String?

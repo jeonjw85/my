@@ -4,9 +4,10 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { parseAdminFiles, type AdminFile } from "@/lib/admin-files";
+import { parseExpiresAtResponse } from "@/lib/file-expiration";
 import {
     FileLedger,
-    type AdminFile,
     type FileFilter,
 } from "./_components/FileLedger";
 import { TeamCodeLedger } from "./_components/TeamCodeLedger";
@@ -15,46 +16,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
 }
 
-function isAdminFile(value: unknown): value is AdminFile {
-    return (
-        isRecord(value) &&
-        typeof value.id === "string" &&
-        typeof value.originalName === "string" &&
-        typeof value.mimeType === "string" &&
-        typeof value.size === "number" &&
-        typeof value.expiresAt === "string" &&
-        typeof value.downloadCount === "number" &&
-        (typeof value.maxDownloads === "number" ||
-            value.maxDownloads === null) &&
-        (typeof value.shareCode === "string" || value.shareCode === null) &&
-        typeof value.oneTime === "boolean" &&
-        typeof value.createdAt === "string"
-    );
-}
-
-function parseAdminFiles(value: unknown): readonly AdminFile[] | null {
-    if (!Array.isArray(value)) return null;
-
-    const files: AdminFile[] = [];
-    for (const item of value) {
-        if (!isAdminFile(item)) return null;
-        files.push(item);
-    }
-    return files;
-}
-
 function parseDeleteSuccess(value: unknown): true | null { return isRecord(value) && value.ok === true ? true : null; }
 
 function parseDeletedCount(value: unknown): number | null {
     const deleted = isRecord(value) ? value.deleted : null;
     if (typeof deleted !== "number") return null;
     return Number.isInteger(deleted) && deleted >= 0 ? deleted : null;
-}
-
-function parseExpiresAt(value: unknown): string | null {
-    const expiresAt = isRecord(value) ? value.expiresAt : null;
-    if (typeof expiresAt !== "string" || expiresAt.trim().length === 0) return null;
-    return Number.isNaN(Date.parse(expiresAt)) ? null : expiresAt;
 }
 
 function isRequestFailure(error: unknown): boolean { return error instanceof TypeError || error instanceof SyntaxError; }
@@ -179,22 +146,24 @@ export default function AdminPage() {
         setActionError("");
         setCleanResult(null);
         try {
-            const expiresAt = await fetchMutationResult(
+            const result = await fetchMutationResult(
                 `/api/files/${id}`,
                 {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ days }),
                 },
-                parseExpiresAt,
+                parseExpiresAtResponse,
             );
-            if (expiresAt === null) {
+            if (result === null || !result.ok) {
                 setActionError("파일 만료일을 연장하지 못했습니다.");
                 return;
             }
             setFiles((previous) =>
                 previous.map((file) =>
-                    file.id === id ? { ...file, expiresAt } : file,
+                    file.id === id
+                        ? { ...file, expiresAt: result.expiresAt }
+                        : file,
                 ),
             );
         } finally {

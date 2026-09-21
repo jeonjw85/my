@@ -6,12 +6,50 @@ import path from "node:path";
 import { Writable } from "node:stream";
 import test from "node:test";
 import {
+    INITIAL_UPLOAD_STATE,
+    uploadStateLabel,
+    uploadStateReducer,
+} from "../lib/upload-progress.ts";
+import {
     commitStagedUpload,
     MissingUploadFileError,
     parseMultipartUpload,
     removeStagedUpload,
     UploadTooLargeError,
 } from "../lib/upload-stream.ts";
+
+test("reports upload progress phases without inventing an initial percentage", () => {
+    const started = uploadStateReducer(INITIAL_UPLOAD_STATE, { type: "start" });
+    assert.equal(uploadStateLabel(started), "업로드 중...");
+
+    const indeterminate = uploadStateReducer(started, {
+        type: "progress",
+        lengthComputable: false,
+        loaded: 0,
+        total: 0,
+    });
+    assert.equal(uploadStateLabel(indeterminate), "업로드 중...");
+
+    const progressing = uploadStateReducer(indeterminate, {
+        type: "progress",
+        lengthComputable: true,
+        loaded: 3,
+        total: 4,
+    });
+    assert.equal(uploadStateLabel(progressing), "업로드 중... 75%");
+    assert.deepEqual(
+        uploadStateReducer(progressing, { type: "reset" }),
+        INITIAL_UPLOAD_STATE,
+    );
+
+    const processing = uploadStateReducer(progressing, { type: "uploaded" });
+    assert.equal(uploadStateLabel(processing), "서버 처리 중...");
+
+    assert.deepEqual(
+        uploadStateReducer(processing, { type: "reset" }),
+        INITIAL_UPLOAD_STATE,
+    );
+});
 
 async function withUploadDir(run) {
     const uploadDir = await mkdtemp(path.join(tmpdir(), "upload-stream-"));

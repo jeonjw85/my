@@ -21,7 +21,7 @@ export async function GET(
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    if (new Date() > file.expiresAt) {
+    if (file.expiresAt !== null && new Date() > file.expiresAt) {
         return NextResponse.json({ error: "File expired" }, { status: 410 });
     }
 
@@ -117,6 +117,10 @@ export async function PATCH(
     const file = await prisma.file.findUnique({ where: { id } });
     if (!file)
         return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    if (file.expiresAt === null) {
+        return NextResponse.json({ expiresAt: null });
+    }
 
     const { days } = (await request.json()) as { days?: number };
     const addDays = Math.min(Math.max(Number(days) || 7, 1), 365);

@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import { useSession } from "next-auth/react";
 
+import {
+    INITIAL_UPLOAD_STATE,
+    uploadStateLabel,
+    uploadStateReducer,
+} from "@/lib/upload-progress";
+import { expirationLabel } from "@/lib/file-expiration";
 import {
     MAX_GENERAL_UPLOAD_SIZE,
     isGeneralUploadTooLarge,
@@ -15,6 +21,8 @@ const EXPIRE_OPTIONS = [
     { value: "24h", label: "24시간" },
     { value: "7d", label: "7일" },
 ] as const;
+
+const NEVER_EXPIRE_OPTION = { value: "never", label: "무기한" } as const;
 
 const GENERAL_UPLOAD_SIZE_ERROR = `파일 크기는 ${MAX_GENERAL_UPLOAD_SIZE / 1024 / 1024}MB를 초과할 수 없습니다.`;
 
@@ -32,13 +40,22 @@ export default function Home() {
     const [expireIn, setExpireIn] = useState("24h");
     const [oneTime, setOneTime] = useState(false);
     const [filePassword, setFilePassword] = useState("");
-    const [uploading, setUploading] = useState(false);
+    const [uploadState, dispatchUploadState] = useReducer(
+        uploadStateReducer,
+        INITIAL_UPLOAD_STATE,
+    );
+    const uploading = uploadState.phase !== "idle";
     const [result, setResult] = useState<{
         id: string;
-        expiresAt: string;
+        expiresAt: string | null;
     } | null>(null);
     const [error, setError] = useState("");
-    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (status !== "loading" && !isAdmin && expireIn === "never") {
+            setExpireIn("24h");
+        }
+    }, [expireIn, isAdmin, status]);
 
     const validateFile = useCallback((f: File) => {
         if (isGeneralUploadTooLarge(f.size, isAdmin)) {
@@ -83,8 +100,7 @@ export default function Home() {
     const handleUpload = useCallback(() => {
         if (status === "loading" || !file) return;
         if (!validateFile(file)) return;
-        setUploading(true);
-        setUploadProgress(0);
+        dispatchUploadState({ type: "start" });
         setError("");
         setResult(null);
 
@@ -96,10 +112,14 @@ export default function Home() {
 
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                setUploadProgress(Math.round((e.loaded / e.total) * 100));
-            }
+            dispatchUploadState({
+                type: "progress",
+                lengthComputable: e.lengthComputable,
+                loaded: e.loaded,
+                total: e.total,
+            });
         };
+        xhr.upload.onload = () => dispatchUploadState({ type: "uploaded" });
         xhr.onload = () => {
             try {
                 const data = JSON.parse(xhr.responseText);
@@ -110,14 +130,12 @@ export default function Home() {
             } catch (e) {
                 setError(e instanceof Error ? e.message : "Upload failed");
             } finally {
-                setUploading(false);
-                setUploadProgress(null);
+                dispatchUploadState({ type: "reset" });
             }
         };
         xhr.onerror = () => {
             setError("Network error");
-            setUploading(false);
-            setUploadProgress(null);
+            dispatchUploadState({ type: "reset" });
         };
         xhr.open("POST", "/api/upload");
         xhr.send(fd);
@@ -181,7 +199,10 @@ export default function Home() {
                     만료 시간
                 </legend>
                 <div className="flex gap-3 flex-wrap">
-                    {EXPIRE_OPTIONS.map((opt) => (
+                    {[
+                        ...EXPIRE_OPTIONS,
+                        ...(isAdmin ? [NEVER_EXPIRE_OPTION] : []),
+                    ].map((opt) => (
                         <button
                             key={opt.value}
                             type="button"
@@ -232,23 +253,22 @@ export default function Home() {
                 disabled={!file || uploading || status === "loading"}
                 className="w-full py-3 text-base rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
             >
-                {uploading
-                    ? `업로드 중... ${uploadProgress ?? 0}%`
-                    : "업로드"}
+                {uploadStateLabel(uploadState)}
             </button>
 
-            {uploading && uploadProgress !== null && (
-                <progress
-                    role="progressbar"
-                    aria-valuenow={uploadProgress}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label="업로드 진행률"
-                    value={uploadProgress}
-                    max={100}
-                    className="w-full h-1.5 [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:bg-zinc-300 [&::-webkit-progress-value]:rounded-full [&::-moz-progress-bar]:bg-zinc-300 [&::-moz-progress-bar]:rounded-full"
-                />
-            )}
+            {uploadState.phase === "uploading" &&
+                uploadState.percent !== null && (
+                    <progress
+                        role="progressbar"
+                        aria-valuenow={uploadState.percent}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label="업로드 진행률"
+                        value={uploadState.percent}
+                        max={100}
+                        className="w-full h-1.5 [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:bg-zinc-300 [&::-webkit-progress-value]:rounded-full [&::-moz-progress-bar]:bg-zinc-300 [&::-moz-progress-bar]:rounded-full"
+                    />
+                )}
 
             {error && (
                 <p role="alert" className="text-red-400 text-sm">
@@ -264,7 +284,9 @@ export default function Home() {
                 >
                     <p className="text-sm text-zinc-500">
                         만료:{" "}
-                        {new Date(result.expiresAt).toLocaleString("ko-KR")}
+                        {expirationLabel(result.expiresAt, (expiresAt) =>
+                            new Date(expiresAt).toLocaleString("ko-KR"),
+                        )}
                     </p>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <input

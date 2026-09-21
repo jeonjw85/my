@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { expirationLabel } from "@/lib/file-expiration";
 
 type FileInfo = {
     id: string;
     originalName: string;
     mimeType: string;
     size: number;
-    expiresAt: string;
+    expiresAt: string | null;
     downloadCount: number;
     maxDownloads: number | null;
     password: string | null;
@@ -154,7 +155,9 @@ export default function FilePageClient() {
                         </p>
                         <p>
                             만료:{" "}
-                            {new Date(file.expiresAt).toLocaleString("ko-KR")}
+                            {expirationLabel(file.expiresAt, (expiresAt) =>
+                                new Date(expiresAt).toLocaleString("ko-KR"),
+                            )}
                         </p>
                         <p>
                             다운로드: {file.downloadCount}

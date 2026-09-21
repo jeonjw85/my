@@ -11,7 +11,8 @@ export async function GET(
         return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const now = new Date();
-    if (now > file.expiresAt) return NextResponse.json({ expired: true });
+    if (file.expiresAt !== null && now > file.expiresAt)
+        return NextResponse.json({ expired: true });
     if (file.maxDownloads !== null && file.downloadCount >= file.maxDownloads)
         return NextResponse.json({ limitReached: true });
 
