@@ -6,7 +6,6 @@ export type AdminFile = {
     readonly expiresAt: string | null;
     readonly downloadCount: number;
     readonly maxDownloads: number | null;
-    readonly shareCode: string | null;
     readonly oneTime: boolean;
     readonly createdAt: string;
 };
@@ -26,7 +25,6 @@ function isAdminFile(value: unknown): value is AdminFile {
         typeof value.downloadCount === "number" &&
         (typeof value.maxDownloads === "number" ||
             value.maxDownloads === null) &&
-        (typeof value.shareCode === "string" || value.shareCode === null) &&
         typeof value.oneTime === "boolean" &&
         typeof value.createdAt === "string"
     );

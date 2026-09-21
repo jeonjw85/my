@@ -1,14 +1,13 @@
 # MY
 
-파일 공유, 팀 채널, 개발자 유틸을 넣은 Next.js 개인 서버
+파일 공유와 개발자 유틸을 넣은 Next.js 개인 서버
 
 ## 기능
 
-- 파일 공유: 링크/공유코드 업로드, 만료, 1회 다운로드, 비밀번호
-- 팀 저장소 / 팀 채널: 공유코드로 메모, 공지, 실시간 메시지
+- 파일 공유: 링크 업로드, 만료, 1회 다운로드, 비밀번호
 - 내 저장소 (`/my`): 개인 파일 보관함 (로그인)
 - 개발자 유틸 (`/util`): 로그인 필요
-- 관리자 (`/admin`): 공유 코드, 파일, 접속 로그 (로그인)
+- 관리자 (`/admin`): 파일, 접속 로그 (로그인)
 
 ## 스택
 
@@ -32,7 +31,7 @@
 
 ```bash
 npm install
-npx prisma migrate deploy
+npm run db:migrate
 npm run dev
 ```
 
@@ -67,7 +66,7 @@ export DATABASE_URL="file:$DB_PATH"
 새 데이터베이스 또는 정상 데이터베이스에는 다음 표준 배포 명령을 사용한다. `20260920120000_complete_schema`를 포함한 모든 마이그레이션을 적용한다.
 
 ```bash
-npx prisma migrate deploy
+npm run db:migrate
 ```
 
 ### `File.password` 드리프트 복구
@@ -91,7 +90,7 @@ sqlite3 "$DB_PATH" "SELECT migration_name, finished_at FROM _prisma_migrations W
 
 ```bash
 npx prisma migrate resolve --applied 20260918111000_add_file_password
-npx prisma migrate deploy
+npm run db:migrate
 npx prisma migrate status
 npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 sqlite3 "$DB_PATH" "PRAGMA integrity_check; PRAGMA foreign_key_check;"

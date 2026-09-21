@@ -18,7 +18,6 @@ function adminFile(id, expiresAt) {
         expiresAt,
         downloadCount: 0,
         maxDownloads: null,
-        shareCode: null,
         oneTime: false,
         createdAt: "2026-09-21T12:00:00.000Z",
     };

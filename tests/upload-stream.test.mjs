@@ -99,14 +99,14 @@ test("accepts a file before its fields", async () => {
         // Given
         const request = multipartRequest([
             ["file", "payload", "payload.bin"],
-            ["shareCode", "TEAM"],
+            ["note", "after file"],
         ]);
 
         // When
         const upload = await parseMultipartUpload(request, { uploadDir, maxFileSize: 64 });
 
         // Then
-        assert.equal(upload.fields.get("shareCode"), "TEAM");
+        assert.equal(upload.fields.get("note"), "after file");
         await removeStagedUpload(upload);
     });
 });

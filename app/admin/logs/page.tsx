@@ -15,8 +15,6 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
     dl_public: { label: "공개 다운로드", color: "text-sky-400" },
     dl_my: { label: "내 파일 다운로드", color: "text-violet-400" },
     upload_public: { label: "공개 업로드", color: "text-emerald-400" },
-    upload_team: { label: "팀 업로드", color: "text-amber-400" },
-    code_lookup: { label: "코드 조회", color: "text-zinc-400" },
 };
 
 function formatDate(iso: string) {

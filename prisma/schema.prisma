@@ -16,7 +16,6 @@ model File {
   expiresAt     DateTime?
   downloadCount Int      @default(0)
   maxDownloads  Int?
-  shareCode     String?
   oneTime       Boolean  @default(false)
   password      String?
   createdAt     DateTime @default(now())
@@ -30,19 +29,6 @@ model MyFile {
   size         Int
   note         String?
   createdAt    DateTime @default(now())
-}
-
-model ShareCode {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  createdAt DateTime @default(now())
-}
-
-model TeamMemo {
-  id        String   @id @default(cuid())
-  shareCode String   @unique
-  content   String   @default("")
-  updatedAt DateTime @updatedAt
 }
 
 model AccessLog {
@@ -122,22 +108,7 @@ model EnvStore {
   updatedAt DateTime @updatedAt
 }
 
-model TeamNotice {
-  id        String   @id @default(cuid())
-  shareCode String
-  content   String
-  pinned    Boolean  @default(false)
-  createdAt DateTime @default(now())
-}
-
 model FilePassword {
   fileId    String   @id
   password  String
-}
-
-model TeamMessage {
-  id        String   @id @default(cuid())
-  author    String   @default("익명")
-  content   String
-  createdAt DateTime @default(now())
 }

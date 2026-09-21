@@ -6,11 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { parseAdminFiles, type AdminFile } from "@/lib/admin-files";
 import { parseExpiresAtResponse } from "@/lib/file-expiration";
-import {
-    FileLedger,
-    type FileFilter,
-} from "./_components/FileLedger";
-import { TeamCodeLedger } from "./_components/TeamCodeLedger";
+import { FileLedger } from "./_components/FileLedger";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
@@ -44,8 +40,6 @@ async function fetchMutationResult<T>(
 export default function AdminPage() {
     const router = useRouter();
     const [files, setFiles] = useState<readonly AdminFile[]>([]);
-    const [filter, setFilter] = useState<FileFilter>("all");
-    const [codeFilter, setCodeFilter] = useState("");
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState("");
     const [actionError, setActionError] = useState("");
@@ -58,11 +52,8 @@ export default function AdminPage() {
     const fetchFiles = useCallback(async () => {
         setLoading(true);
         setLoadError("");
-        const params = new URLSearchParams({ type: filter });
-        if (codeFilter.trim()) params.set("code", codeFilter.trim());
-
         try {
-            const response = await fetch(`/api/admin/files?${params}`);
+            const response = await fetch("/api/admin/files");
             if (response.status === 401) {
                 router.push("/admin/login");
                 return;
@@ -88,7 +79,7 @@ export default function AdminPage() {
         } finally {
             setLoading(false);
         }
-    }, [filter, codeFilter, router]);
+    }, [router]);
 
     useEffect(() => {
         void fetchFiles();
@@ -181,7 +172,7 @@ export default function AdminPage() {
                         관리
                     </h1>
                     <p className="mt-1 text-sm text-zinc-400">
-                        공유 코드와 파일 상태를 관리합니다.
+                        공유 파일 상태를 관리합니다.
                     </p>
                 </div>
                 <nav
@@ -217,11 +208,8 @@ export default function AdminPage() {
             </header>
 
             <div className="space-y-6 sm:space-y-10">
-                <TeamCodeLedger />
                 <FileLedger
                     files={files}
-                    filter={filter}
-                    codeFilter={codeFilter}
                     loading={loading}
                     loadError={loadError}
                     actionError={actionError}
@@ -229,10 +217,6 @@ export default function AdminPage() {
                     cleanResult={cleanResult}
                     extendingId={extending}
                     deletingId={deletingId}
-                    onFilterChange={setFilter}
-                    onCodeFilterChange={(value) =>
-                        setCodeFilter(value.toUpperCase())
-                    }
                     onCleanup={handleCleanup}
                     onExtend={(id) => handleExtend(id, 7)}
                     onDelete={handleDelete}
