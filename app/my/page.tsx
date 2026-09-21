@@ -55,10 +55,6 @@ export default function MyPage() {
         setDragging(false);
         const dropped = e.dataTransfer.files[0];
         if (!dropped) return;
-        if (dropped.size > 500 * 1024 * 1024) {
-            setUploadError("파일 크기는 500MB를 종과할 수 없습니다.");
-            return;
-        }
         setSelectedFile(dropped);
     };
 
@@ -174,13 +170,6 @@ export default function MyPage() {
                         onChange={(e) => {
                             const f = e.target.files?.[0];
                             if (!f) return;
-                            if (f.size > 500 * 1024 * 1024) {
-                                setUploadError(
-                                    "파일 크기는 500MB를 종과할 수 없습니다.",
-                                );
-                                e.target.value = "";
-                                return;
-                            }
                             setSelectedFile(f);
                         }}
                     />
