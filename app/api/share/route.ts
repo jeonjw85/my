@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import { existsSync } from "fs";
+import { MAX_GENERAL_UPLOAD_SIZE } from "@/lib/upload-policy";
+import {
+    commitStagedUpload,
+    InvalidMultipartUploadError,
+    MissingUploadFileError,
+    parseMultipartUpload,
+    removeStagedUpload,
+    removeStagedUploadAfterError,
+    UploadTooLargeError,
+} from "@/lib/upload-stream";
+import type { StagedUpload } from "@/lib/upload-stream";
+import type { File as FileRecord } from "@prisma/client";
+import { rm } from "fs/promises";
 import path from "path";
-import { v4 as uuidv4 } from "uuid";
 import { logAccess } from "@/lib/log";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-const MAX_SIZE = 500 * 1024 * 1024;
 
 // IP별 rate limiting: 10분에 최대 10번 시도
 const attemptMap = new Map<string, { count: number; resetAt: number }>();
@@ -94,78 +104,102 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const shareCode = (formData.get("shareCode") as string)
-        ?.trim()
-        .toUpperCase();
-    const overwriteId = (formData.get("overwriteId") as string) || null;
-
-    if (!file) {
-        return NextResponse.json(
-            { error: "No file provided" },
-            { status: 400 },
-        );
+    const session = await getSession();
+    let upload: StagedUpload;
+    try {
+        upload = await parseMultipartUpload(request, {
+            uploadDir: UPLOAD_DIR,
+            ...(session?.role === "admin"
+                ? {}
+                : { maxFileSize: MAX_GENERAL_UPLOAD_SIZE }),
+        });
+    } catch (error: unknown) {
+        if (
+            error instanceof MissingUploadFileError ||
+            error instanceof InvalidMultipartUploadError
+        ) {
+            return NextResponse.json(
+                { error: "No file provided" },
+                { status: 400 },
+            );
+        }
+        if (error instanceof UploadTooLargeError) {
+            return NextResponse.json(
+                { error: "File too large (max 500MB)" },
+                { status: 413 },
+            );
+        }
+        throw error;
     }
 
+    const shareCode = upload.fields.get("shareCode")?.trim().toUpperCase();
+    const overwriteId = upload.fields.get("overwriteId") || null;
+
     if (!shareCode || shareCode.length < 4) {
+        await removeStagedUpload(upload);
         return NextResponse.json(
             { error: "Invalid share code" },
             { status: 400 },
         );
     }
 
-    if (!(await validateCode(shareCode))) {
+    let validCode: boolean;
+    try {
+        validCode = await validateCode(shareCode);
+    } catch (error: unknown) {
+        return removeStagedUploadAfterError(upload, error);
+    }
+    if (!validCode) {
+        await removeStagedUpload(upload);
         return NextResponse.json(
             { error: "유효하지 않은 공유 코드입니다." },
             { status: 403 },
         );
     }
 
-    if (file.size > MAX_SIZE) {
-        return NextResponse.json(
-            { error: "File too large (max 200MB)" },
-            { status: 413 },
-        );
-    }
-
-    // 덮어쓰기: 기존 파일 삭제
-    if (overwriteId) {
-        const existing = await prisma.file.findUnique({
-            where: { id: overwriteId },
-        });
-        if (existing && existing.shareCode === shareCode) {
-            const oldPath = path.join(UPLOAD_DIR, existing.filename);
-            if (existsSync(oldPath)) await unlink(oldPath);
-            await prisma.file.delete({ where: { id: overwriteId } });
+    let existing: FileRecord | null = null;
+    try {
+        if (overwriteId) {
+            const candidate = await prisma.file.findUnique({
+                where: { id: overwriteId },
+            });
+            if (candidate?.shareCode === shareCode) {
+                existing = candidate;
+            }
         }
+    } catch (error: unknown) {
+        return removeStagedUploadAfterError(upload, error);
     }
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    if (!existsSync(UPLOAD_DIR)) {
-        await mkdir(UPLOAD_DIR, { recursive: true });
+    let record: FileRecord;
+    try {
+        await commitStagedUpload(upload);
+        record = await prisma.$transaction(async (transaction) => {
+            const created = await transaction.file.create({
+                data: {
+                    filename: upload.filename,
+                    originalName: upload.originalName,
+                    mimeType: upload.mimeType,
+                    size: upload.size,
+                    expiresAt,
+                    shareCode,
+                },
+            });
+            if (existing !== null) {
+                await transaction.file.delete({ where: { id: existing.id } });
+            }
+            return created;
+        });
+    } catch (error: unknown) {
+        return removeStagedUploadAfterError(upload, error);
     }
 
-    const ext = path.extname(file.name);
-    const filename = uuidv4() + ext;
-    const filePath = path.join(UPLOAD_DIR, filename);
+    if (existing !== null) {
+        await rm(path.join(UPLOAD_DIR, existing.filename), { force: true });
+    }
 
-    const bytes = await file.arrayBuffer();
-    await writeFile(filePath, Buffer.from(bytes));
-
-    const record = await prisma.file.create({
-        data: {
-            filename,
-            originalName: file.name,
-            mimeType: file.type || "application/octet-stream",
-            size: file.size,
-            expiresAt,
-            shareCode,
-        },
-    });
-
-    await logAccess("upload_team", file.name, request);
+    await logAccess("upload_team", upload.originalName, request);
 
     return NextResponse.json({ id: record.id, shareCode });
 }
